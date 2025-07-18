@@ -5,39 +5,33 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Proyecto Final Interactivo: Ajedrez y Pensamiento Estratégico</title>
     
-    <!-- Librería de Reglas de Ajedrez -->
+    <!-- LIBRERÍAS DE AJEDREZ - JS (Solo el motor de reglas) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     
-    <!-- Hoja de Estilos de la nueva librería del tablero -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cm-chessboard@7/styles/cm-chessboard.css"/>
-
     <style>
-        /* Tus estilos personalizados, con pequeños ajustes para el nuevo tablero */
+        /* CSS DE LA LIBRERÍA CM-CHESSBOARD (INCRUSTADO PARA EVITAR FALLOS) */
+        /* Estilos generales, reset, etc. */
+        :host,cm-chessboard .cm-chessboard svg,cm-chessboard .cm-chessboard .board{width:100%;height:100%}.marker,cm-chessboard .cm-chessboard .board .border{pointer-events:none}cm-chessboard{box-sizing:border-box;display:block;position:relative}cm-chessboard .cm-chessboard .board{user-select:none;background-size:12.5% 12.5%}cm-chessboard .cm-chessboard .board .coordinate{font-family:sans-serif;font-size:.8rem;fill:#fff;opacity:.8;user-select:none}cm-chessboard .cm-chessboard .board .piece{pointer-events:none;touch-action:none}
+        /* Tus estilos personalizados */
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Playfair+Display:wght@700&family=Noto+Serif:ital,wght@0,400;0,700;1,400&display=swap');
-        
         body { font-family: 'Noto Serif', serif; line-height: 1.8; background-color: #f8f9fa; color: #212529; margin: 0; padding-top: 60px; scroll-behavior: smooth; }
         .container { max-width: 950px; margin: 20px auto; padding: 30px 50px; background: #ffffff; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border-radius: 10px; border-top: 5px solid #005f73; }
         nav { position: fixed; top: 0; left: 0; width: 100%; background-color: #001219; padding: 10px 0; box-shadow: 0 3px 8px rgba(0,0,0,0.25); z-index: 1000; text-align: center; }
         nav a { color: #e9d8a6; text-decoration: none; font-family: 'Roboto', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin: 0 15px; padding: 10px 15px; border-radius: 5px; transition: background-color 0.3s, color 0.3s; }
         nav a:hover { background-color: #94d2bd; color: #001219; }
-        
         h1, h2, h3 { font-family: 'Playfair Display', serif; color: #005f73; }
         .project-subtitle { text-align: center; font-size: 1.4em; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; color: #0a9396; margin-bottom: -10px; font-family: 'Playfair Display', serif;}
         h1 { font-size: 3em; text-align: center; margin-bottom: 25px; font-weight: 700; }
         h2 { font-size: 2.2em; border-bottom: 3px solid #94d2bd; padding-bottom: 15px; margin-top: 60px; }
         h3 { font-size: 1.6em; color: #0a9396; border-left: 4px solid #ee9b00; padding-left: 10px; }
-        
         section { padding-top: 70px; margin-top: -60px; }
-        p { font-size: 1.1em; text-align: justify; }
-
+        p, li { font-size: 1.1em; text-align: justify; }
         #game-container { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 25px; }
-        #board-container { width: 100%; max-width: 450px; } /* Contenedor para el nuevo tablero */
+        #board-container { width: 100%; max-width: 450px; }
         #game-controls { flex-grow: 1; min-width: 300px; max-width: 400px; }
-        
         .controls-nav button { font-family: 'Roboto', sans-serif; font-size: 1.1em; padding: 10px 18px; margin: 5px; border: 2px solid #005f73; background-color: #fff; color: #005f73; border-radius: 5px; cursor: pointer; transition: all 0.2s; }
         .controls-nav button:hover { background-color: #005f73; color: #fff; transform: translateY(-2px); }
         .controls-nav button:disabled { background-color: #ccc; border-color: #ccc; color: #666; cursor: not-allowed; transform: none; }
-        
         #commentary { background-color: #eaf2f8; border-left: 5px solid #3498db; padding: 15px; margin-top: 20px; border-radius: 8px; min-height: 80px; font-style: italic; font-size: 1.05em; }
         .anexo-imagen { width: 100%; max-width: 600px; display: block; margin: 20px auto; border: 3px solid #dee2e6; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
     </style>
@@ -62,7 +56,6 @@
             
             <div id="game-container">
                 <div id="board-container"></div>
-                
                 <div id="game-controls">
                     <div class="controls-nav">
                         <button id="startBtn">« Inicio</button>
@@ -89,12 +82,12 @@
         </section>
     </div>
 
-<!-- Script del nuevo tablero: tipo "module" para que funcione correctamente -->
-<script type="module">
-    import { Chessboard } from "https://cdn.jsdelivr.net/npm/cm-chessboard@7/src/cm-chessboard/Chessboard.js"
-
+<!-- Librería del Tablero (cm-chessboard), versión empaquetada e incrustada para evitar fallos de carga -->
+<script src="https://cdn.jsdelivr.net/npm/cm-chessboard@7.5.3/dist/cm-chessboard.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
     // --- CONFIGURACIÓN DE LA PARTIDA ---
-    const game = new Chess(); // Cerebro de ajedrez
+    const game = new Chess();
     const pgn = `[Event "Proyecto Final"]
 [Site "Lichess.org"]
 [Date "2024.07.15"]
@@ -112,13 +105,12 @@
         1: "El oponente inicia con la Defensa Siciliana (1...c5), una respuesta aguda y asimétrica contra 1.e4.",
         8: "Enroque corto. La seguridad del rey es la prioridad principal antes de comenzar operaciones en el centro o los flancos.",
         33: "Este jaque con el caballo (Nf6+) marca el punto de inflexión. El rey negro pierde su última defensa y queda expuesto al ataque.",
-        39: "¡Jaque Mate! La Dama, sin oposición, da el golpe final. Una victoria lograda a través de la táctica y el ataque al rey."
+        39: "¡Jaque Mate! La Dama, sin oposición, da el golpe final."
     };
 
     const boardContainer = document.getElementById("board-container");
     const board = new Chessboard(boardContainer, {
-        position: "start",
-        // Las piezas SVG están integradas por defecto. No se necesita URL externa.
+        position: "start"
     });
 
     // --- LÓGICA DE ACTUALIZACIÓN Y NAVEGACIÓN ---
@@ -139,14 +131,12 @@
         }
         document.getElementById("commentary").innerText = commentText;
 
-        // Habilitar/deshabilitar botones
         document.getElementById("startBtn").disabled = currentMove < 0;
         document.getElementById("prevBtn").disabled = currentMove < 0;
         document.getElementById("nextBtn").disabled = currentMove >= history.length - 1;
         document.getElementById("endBtn").disabled = currentMove >= history.length - 1;
     }
 
-    // Navegación
     document.getElementById("startBtn").addEventListener("click", () => {
         game.reset();
         board.setPosition(game.fen());
@@ -177,8 +167,8 @@
         updateDisplay();
     });
 
-    // Inicializar
     updateDisplay();
+});
 </script>
 </body>
-</html>
+</html>```
