@@ -2,9 +2,8 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <!-- Meta tag importante para una buena experiencia en móviles -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Tablero de Ajedrez Interactivo - Versión Definitiva</title>
+    <title>Juego de Ajedrez Interactivo</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     
@@ -16,175 +15,115 @@
             display: flex; 
             flex-direction: column; 
             align-items: center; 
-            justify-content: flex-start; /* Alinear al principio */
+            justify-content: center; /* Centrar verticalmente */
             min-height: 100vh; 
             margin: 0; 
-            padding-top: 20px;
-            background-color: #f0f0f0; 
-            color: #333;
-            /* Evitar scroll extraño en móviles */
-            touch-action: manipulation;
+            padding: 10px 0;
+            background-color: #302e2c; /* Fondo oscuro, estilo ajedrez */
+            color: #ddd; 
         }
 
-        #board-wrapper { width: 95vw; max-width: 500px; }
-        .chessboard { display: grid; grid-template-columns: repeat(8, 1fr); border: 2px solid #3A3836; width: 100%; }
-        .square { position: relative; width: 100%; padding-bottom: 100%; }
+        #game-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #board-wrapper { width: 95vw; max-width: 600px; }
+        
+        .chessboard {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr); 
+            border: 2px solid #3A3836;
+            width: 100%;
+            aspect-ratio: 1 / 1; /* Asegurar que siempre sea cuadrado */
+        }
+        
+        .square {
+            position: relative;
+            width: 100%;
+        }
+        
         .square .piece {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
             display: flex; align-items: center; justify-content: center;
-            font-size: clamp(20px, 9vw, 48px);
+            font-size: clamp(20px, 9vw, 56px); /* Piezas un poco más grandes */
             line-height: 1; user-select: none; -webkit-user-select: none;
             cursor: grab;
-            transition: opacity 0.1s;
         }
-        .square .piece.dragging { opacity: 0.5; cursor: grabbing; z-index: 1000; pointer-events: none;}
+        
         .light { background-color: #f0d9b5; }
         .dark { background-color: #b58863; }
+        
         .piece.w { color: #fff; text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000; }
         .piece.b { color: #000; }
 
-        .controls { margin-top: 20px; text-align: center; }
-        button { font-family: 'Roboto', sans-serif; font-size: 1em; padding: 10px 15px; margin: 5px; cursor: pointer; border-radius: 5px; border: 2px solid #005f73; }
-        button:hover { background-color: #005f73; color: white; }
-        #commentary { margin-top: 15px; padding: 10px; background-color: #e7e7e7; border-radius: 5px; min-height: 40px; text-align: center; width: calc(95% - 20px); font-style: italic; }
+        /* --- ESTILOS PARA INTERACTIVIDAD --- */
+        .selected { background-color: rgba(255, 255, 0, 0.5) !important; /* Resaltado de la pieza seleccionada */ }
+        
+        .legal-move-dot::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 30%;
+            height: 30%;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 50%;
+        }
+        
+        /* Controles y estado */
+        .game-info { text-align: center; margin-top: 15px; }
+        h1 { margin: 10px 0; font-family: 'Playfair Display', serif; }
+        #status { font-family: 'Roboto', sans-serif; font-size: 1.2em; font-weight: bold; min-height: 1.5em; }
+        button { font-family: 'Roboto', sans-serif; font-size: 1em; padding: 10px 20px; margin-top: 10px; cursor: pointer; border-radius: 5px; border: 2px solid #888; background-color: #555; color: #eee; }
+        button:hover { background-color: #666; }
+
     </style>
 </head>
 <body>
 
-    <h1>Tablero Interactivo (Móvil y Escritorio)</h1>
-    <p>Arrastra las piezas con el ratón o con el dedo.</p>
+    <div id="game-wrapper">
+        <h1>Juego de Ajedrez</h1>
+        <div id="status">Turno de las Blancas</div>
 
-    <div id="board-wrapper">
-        <div class="chessboard"></div>
+        <div id="board-wrapper">
+            <div class="chessboard"></div>
+        </div>
+        
+        <button id="resetBtn">Reiniciar Partida</button>
     </div>
-    
-    <div class="controls">
-        <button id="startBtn">« Reiniciar Partida</button>
-    </div>
-
-    <div id="commentary">Mueve una pieza para comenzar.</div>
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
+    
+    // --- LÓGICA DEL JUEGO (Cerebro) ---
     const game = new Chess();
+    
+    // --- REPRESENTACIÓN VISUAL (Tablero y piezas) ---
     const pieceUnicode = { p: '♙', r: '♖', n: '♘', b: '♗', q: '♕', k: '♔', P: '♟', R: '♜', N: '♞', B: '♝', Q: '♛', K: '♚' };
     const boardElement = document.querySelector('.chessboard');
-    let sourceSquare = null;
-    let draggedElement = null;
     
-    // === FUNCIONES AUXILIARES ===
+    let selectedSquare = null; // Para la lógica de clic-clic
+
+    // --- FUNCIONES CLAVE ---
+
     const coordsToAlgebraic = (row, col) => String.fromCharCode('a'.charCodeAt(0) + col) + (8 - row);
     
-    // === LÓGICA DE MOVIMIENTO ===
-    function handleMove(source, target) {
-        if (source === target) return;
-        const move = game.move({ from: source, to: target, promotion: 'q' });
-        
-        if (move !== null) {
-            drawBoard();
-            updateStatus();
-        }
-    }
-    
-    function updateStatus() {
-        let status = '';
-        const moveColor = game.turn() === 'b' ? 'Negras' : 'Blancas';
-        if (game.game_over()) {
-            status = game.in_checkmate() ? `¡Jaque Mate! Ganan las ${moveColor === 'Negras' ? 'Blancas' : 'Negras'}.` : "La partida es tablas.";
-        } else {
-            status = `Mueven las ${moveColor}.` + (game.in_check() ? ' ¡Están en jaque!' : '');
-        }
-        document.getElementById('commentary').innerText = status;
-    }
-
-    // === GESTIÓN DE EVENTOS (DRAG & DROP Y TÁCTIL) ===
-    function addEventListeners() {
-        const squares = document.querySelectorAll('.square');
-
-        // Función de inicio de arrastre (ratón o táctil)
-        const onDragStart = (e) => {
-            const target = e.target;
-            if (target.classList.contains('piece')) {
-                sourceSquare = target.parentElement.dataset.square;
-                target.classList.add('dragging');
-                draggedElement = target;
-
-                if (e.type === 'touchstart') {
-                    // Mover la pieza con el dedo
-                    document.body.appendChild(draggedElement);
-                    draggedElement.style.position = 'absolute';
-                    draggedElement.style.left = e.touches[0].pageX - (draggedElement.offsetWidth / 2) + 'px';
-                    draggedElement.style.top = e.touches[0].pageY - (draggedElement.offsetHeight / 2) + 'px';
-                }
-            }
-        };
-
-        // Función de movimiento (táctil)
-        const onTouchMove = (e) => {
-            e.preventDefault();
-            if (draggedElement) {
-                draggedElement.style.left = e.touches[0].pageX - (draggedElement.offsetWidth / 2) + 'px';
-                draggedElement.style.top = e.touches[0].pageY - (draggedElement.offsetHeight / 2) + 'px';
-            }
-        };
-
-        // Función de fin de arrastre (ratón o táctil)
-        const onDragEnd = (e, isTouchEvent = false) => {
-            if (!draggedElement) return;
-
-            let targetSquare;
-            if (isTouchEvent) {
-                // Para táctil, encontramos la casilla debajo del dedo
-                draggedElement.style.display = 'none'; // Ocultar temporalmente
-                const endTarget = document.elementFromPoint(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
-                draggedElement.style.display = ''; // Mostrar de nuevo
-                targetSquare = endTarget ? (endTarget.classList.contains('square') ? endTarget.dataset.square : endTarget.parentElement.dataset.square) : null;
-            } else {
-                targetSquare = e.currentTarget.dataset.square;
-            }
-            
-            if (sourceSquare && targetSquare) {
-                handleMove(sourceSquare, targetSquare);
-            }
-            draggedElement.classList.remove('dragging');
-            
-            if (isTouchEvent && !boardElement.contains(draggedElement)) {
-                // Si el evento touch termina, el elemento podría quedar fuera del tablero. 
-                // La función drawBoard() lo solucionará. Si no, habría que devolverlo manualmente.
-                drawBoard(); 
-            }
-            
-            sourceSquare = null;
-            draggedElement = null;
-        };
-
-        boardElement.addEventListener('touchstart', onDragStart);
-        document.addEventListener('touchmove', onTouchMove, { passive: false });
-        document.addEventListener('touchend', (e) => onDragEnd(e, true));
-
-        squares.forEach(square => {
-            square.addEventListener('dragover', (e) => e.preventDefault());
-            square.addEventListener('drop', (e) => onDragEnd(e));
-        });
-
-        // Eventos de ratón
-        const pieces = document.querySelectorAll('.piece');
-        pieces.forEach(piece => {
-            piece.addEventListener('dragstart', onDragStart);
-        });
-    }
-
-    // === DIBUJADO DEL TABLERO ===
     function drawBoard() {
-        const boardState = game.board();
-        boardElement.innerHTML = '';
-        for (let i = 0; i < 8; i++) {
-            for (let j = 0; j < 8; j++) {
+        boardElement.innerHTML = ''; 
+        const boardState = game.board(); 
+
+        for (let i = 0; i < 8; i++) { // Filas
+            for (let j = 0; j < 8; j++) { // Columnas
                 const square = document.createElement('div');
                 const squareAlg = coordsToAlgebraic(i, j);
                 square.dataset.square = squareAlg;
-                square.className = `square ${(i + j) % 2 === 0 ? 'light' : 'dark'}`;
+                
+                const squareColor = (i + j) % 2 === 0 ? 'light' : 'dark';
+                square.className = `square ${squareColor}`;
                 
                 const piece = boardState[i][j];
                 if (piece) {
@@ -192,21 +131,93 @@ document.addEventListener("DOMContentLoaded", function() {
                     const pieceElement = document.createElement('span');
                     pieceElement.className = `piece ${piece.color}`;
                     pieceElement.innerText = pieceSymbol;
-                    pieceElement.setAttribute('draggable', true);
                     square.appendChild(pieceElement);
                 }
+                
                 boardElement.appendChild(square);
             }
         }
-        addEventListeners(); // Añadir listeners después de cada redibujado
+        addEventListeners(); 
+        updateStatus();
+    }
+
+    function handleMove(source, target) {
+        const move = game.move({ from: source, to: target, promotion: 'q' });
+        
+        if (move !== null) {
+            drawBoard(); // El tablero se redibuja, quitando los resaltados.
+        } else {
+            // Movimiento ilegal, solo limpiamos la selección
+            clearHighlights();
+            selectedSquare = null;
+        }
     }
     
-    // --- BOTONES ---
-    document.getElementById("startBtn").onclick = () => { game.reset(); drawBoard(); updateStatus(); };
+    function clearHighlights() {
+        document.querySelectorAll('.square').forEach(sq => {
+            sq.classList.remove('selected', 'legal-move-dot');
+        });
+    }
+
+    function onSquareClick(e) {
+        const squareElement = e.currentTarget;
+        const squareAlg = squareElement.dataset.square;
+
+        if (selectedSquare) {
+            // Ya hay una pieza seleccionada, intentamos moverla
+            handleMove(selectedSquare, squareAlg);
+            selectedSquare = null; // Deseleccionar después del intento
+        } else {
+            // No hay pieza seleccionada, la seleccionamos
+            const piece = game.get(squareAlg);
+            // Solo se puede seleccionar si hay una pieza del turno correcto
+            if (piece && piece.color === game.turn()) {
+                selectedSquare = squareAlg;
+                clearHighlights();
+                squareElement.classList.add('selected');
+                
+                // Mostrar movimientos legales
+                const legalMoves = game.moves({ square: squareAlg, verbose: true });
+                legalMoves.forEach(move => {
+                    document.querySelector(`[data-square="${move.to}"]`).classList.add('legal-move-dot');
+                });
+            }
+        }
+    }
+
+    function addEventListeners() {
+        document.querySelectorAll('.square').forEach(square => {
+            square.addEventListener('click', onSquareClick);
+        });
+    }
+
+    function updateStatus() {
+        let status = '';
+        const moveColor = game.turn() === 'w' ? 'Blancas' : 'Negras';
+        
+        if (game.game_over()) {
+            if (game.in_checkmate()) {
+                status = `¡Jaque Mate! Ganan las ${moveColor === 'Negras' ? 'Blancas' : 'Negras'}.`;
+            } else if (game.in_draw()) {
+                status = "La partida es tablas.";
+            } else if (game.in_stalemate()) {
+                status = "Tablas por ahogado.";
+            } else if (game.in_threefold_repetition()) {
+                status = "Tablas por triple repetición.";
+            }
+        } else {
+            status = `Mueven las ${moveColor}.`;
+            if (game.in_check()) {
+                status += ' ¡Están en jaque!';
+            }
+        }
+        document.getElementById('status').innerText = status;
+    }
+    
+    document.getElementById("resetBtn").onclick = () => { game.reset(); drawBoard(); selectedSquare = null; };
 
     // --- INICIALIZACIÓN ---
     drawBoard();
-    updateStatus();
 });
 </script>
 
