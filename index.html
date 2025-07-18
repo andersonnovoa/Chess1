@@ -151,8 +151,8 @@ $(document).ready(function() {
             draggable: false,
             position: 'start',
             // === LA LÍNEA CRÍTICA Y CORREGIDA ===
-            // Este enlace usa una CDN (jsdelivr) que está optimizada para servir estos archivos y no será bloqueada.
-            pieceTheme: 'https://cdn.jsdelivr.net/gh/lichess-org/lila-asset/piece/merida/{piece}.svg'
+            // Este enlace apunta al proveedor oficial y estable (unpkg) para las piezas de chessboard.js
+            pieceTheme: 'https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/img/chesspieces/wikipedia/{piece}.png'
         };
         
         board = Chessboard('myBoard', config);
